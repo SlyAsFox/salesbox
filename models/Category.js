@@ -9,8 +9,14 @@ Category.init({
         field: 'company_id',
         allowNull: false
     },
-    name: {
+    nameRU: {
         type: DataTypes.STRING,
+        field: 'name_ru',
+        allowNull: false
+    },
+    nameUA: {
+        type: DataTypes.STRING,
+        field: 'name_ua',
         allowNull: false
     },
     originalURL: {
