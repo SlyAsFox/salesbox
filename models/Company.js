@@ -8,9 +8,19 @@ Company.init({
         type: DataTypes.STRING,
         allowNull: false
     },
-    ymlURL: {
+    ymlURL_UA: {
         type: DataTypes.STRING,
-        field: 'yml_url',
+        field: 'yml_url_ua',
+        allowNull: true
+    },
+    ymlURL_RU: {
+        type: DataTypes.STRING,
+        field: 'yml_url_ru',
+        allowNull: true
+    },
+    firebaseId: {
+        type: DataTypes.STRING,
+        field: 'firebase_id',
         allowNull: true
     }
 },{

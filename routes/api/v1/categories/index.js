@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const router = new Router();
 const asyncHandler = require('express-async-handler');
-const { Category, Company } = require('../../../models');
+const { Category, Company } = require('../../../../models');
 
 router.get('/', asyncHandler(async (req, res) => {
     const categories = await Category.findAll();
