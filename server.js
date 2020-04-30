@@ -9,4 +9,8 @@ sequelize.authenticate()
     .then( () => {
        server.listen(dotenv.parsed.PORT);
        console.log(`Server started at PORT: ${dotenv.parsed.PORT}`)
+    })
+    .catch( err => {
+        console.log(`Connection ERROR: ${err}`)
+        throw err;
     });

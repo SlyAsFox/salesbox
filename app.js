@@ -1,7 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 
-// const usersRoutes = require('./routes/api/v1/users');
+const companiesRoutes = require('./routes/v1/companies');
+const categoriesRoutes = require('./routes/v1/categories');
+const synchronizationRoutes = require('./routes/v1/synchronization');
 
 const app = express();
 
@@ -25,7 +27,9 @@ app.get('/', (req, res) => {
     });
 });
 
-// app.use('/api/v1/users', usersRoutes);
+app.use('/v1/companies', companiesRoutes);
+app.use('/v1/categories', categoriesRoutes);
+app.use('/v1/synchronization', synchronizationRoutes);
 
 app.use((error, req, res, next) => {
     res.send({
