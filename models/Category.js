@@ -9,15 +9,20 @@ Category.init({
         field: 'company_id',
         allowNull: false
     },
+    internalId: {
+        type: DataTypes.INTEGER,
+        field: 'internal_id',
+        allowNull: false
+    },
     nameRU: {
         type: DataTypes.STRING,
         field: 'name_ru',
-        allowNull: false
+        allowNull: true
     },
     nameUA: {
         type: DataTypes.STRING,
         field: 'name_ua',
-        allowNull: false
+        allowNull: true
     },
     originalURL: {
         type: DataTypes.STRING,
@@ -46,25 +51,12 @@ Category.init({
     }
 )
 
-Category.associate = ( models ) => {
-    Category.belongsTo( models.Company );
-    Category.hasOne( models.Category, {
-        foreignKey: 'parent_id',
-        as: 'parent'
-    });
-
-};
+// Category.associate = ( models ) => {
+//     Category.belongsTo( models.Company );
+//     Category.hasOne( models.Category, {
+//         foreignKey: 'parent_id',
+//         as: 'parent'
+//     });
+// };
 
 module.exports = Category;
-/*
-
-Category.associate = ( models ) => {
-    Category.belongsTo( models.Company );
-    Category.hasOne( models.Category, {
-        foreignKey: 'parent_id',
-        as: 'parent'
-    } );
-};
-
-
-*/

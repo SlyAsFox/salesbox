@@ -33,8 +33,8 @@ Company.init({
     // }
 });
 
-Company.associate = ( models ) => {
-    Company.hasMany( models.Category );
-};
+// Company.associate = ( models ) => {
+    // Company.hasMany( models.Category );
+// };
 
 module.exports = Company;

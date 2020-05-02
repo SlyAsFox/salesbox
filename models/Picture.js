@@ -8,9 +8,13 @@ Picture.init({
         type: DataTypes.STRING,
         allowNull: false
     },
-    offerId: {
+    order: {
         type: DataTypes.INTEGER,
-        field: 'offer_id',
+        allowNull: true
+    },
+    offerId: {
+        type: DataTypes.STRING,
+        field: 'offer_internal_id',
         allowNull: false
     }
 },{
@@ -23,8 +27,8 @@ Picture.init({
     // }
 });
 
-Picture.associate = ( models ) => {
-    Picture.belongsTo( models.Offer );
-};
+// Picture.associate = ( models ) => {
+//     Picture.belongsTo( models.Offer );
+// };
 
 module.exports = Picture;

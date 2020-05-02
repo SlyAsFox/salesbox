@@ -4,73 +4,104 @@ const sequelize = require('../sequelize');
 class Offer extends Model {}
 
 Offer.init({
-    name: {
+    internalId: {
         type: DataTypes.STRING,
-        allowNull: false
+        field: 'internal_id',
+        allowNull: true
+    },
+    companyId: {
+        type: DataTypes.INTEGER,
+        field: 'company_id',
+        allowNull: true
+    },
+    nameRU: {
+        type: DataTypes.STRING,
+        field: 'name_ru',
+        allowNull: true
+    },
+    nameUA: {
+        type: DataTypes.STRING,
+        field: 'name_ua',
+        allowNull: true
+    },
+    descriptionRU: {
+        type: DataTypes.STRING,
+        field: 'description_ru',
+        allowNull: true
+    },
+    descriptionUA: {
+        type: DataTypes.STRING,
+        field: 'description_ua',
+        allowNull: true
     },
     available: {
         type: DataTypes.BOOLEAN,
-        allowNull: false
+        allowNull: true
+    },
+    price: {
+        type: DataTypes.DOUBLE,
+        allowNull: true,
+    },
+    priceOld: {
+        type: DataTypes.DOUBLE,
+        field: 'price_old',
+        allowNull: true,
+    },
+    pricePromo: {
+        type: DataTypes.DOUBLE,
+        field: 'price_promo',
+        allowNull: true,
     },
     url: {
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: true,
     },
-    price: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-    },
-    categoryId: {
-        type: DataTypes.INTEGER,
-        field: 'category_id',
-        allowNull: false
-    },
-    currencyId: {
-        type: DataTypes.INTEGER,
-        field: 'currency_id',
-        allowNull: false
-    },
-    pickup: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false
-    },
-    delivery: {
+    model: {
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: true,
     },
     vendor: {
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: true,
     },
     vendorCode: {
         type: DataTypes.STRING,
         field: 'vendor_code',
-        allowNull: false
-    },
-    description: {
-        type: DataTypes.STRING,
-        allowNull: false
+        allowNull: true,
     },
     countryOfOrigin: {
         type: DataTypes.STRING,
         field: 'country_of_origin',
-        allowNull: false
-    }
+        allowNull: true,
+    },
+    pickup: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true
+    },
+    delivery: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true
+    },
+    stockQuantity: {
+        type: DataTypes.INTEGER,
+        field: 'stock_quantity',
+        allowNull: true,
+    },
+    categoryId: {
+        type: DataTypes.INTEGER,
+        field: 'category_id',
+        allowNull: true,
+    },
+    currencyId: {
+        type: DataTypes.STRING,
+        field: 'currency_id',
+        allowNull: true,
+    },
 },{
     sequelize,
     modelName: 'offers',
     underscored: true,
     timestamps: false,
-    // defaultScope: {
-    //     attributes: { exclude: ['id'] }
-    // }
 });
-
-Offer.associate = ( models ) => {
-    Offer.hasMany( models.Param );
-    Offer.hasMany( models.Picture );
-    Offer.belongsTo( models.Currency );
-    Offer.belongsTo( models.Category );
-};
 
 module.exports = Offer;

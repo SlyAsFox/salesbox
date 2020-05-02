@@ -23,8 +23,8 @@ Currency.init({
     // }
 });
 
-Currency.associate = ( models ) => {
-    Currency.hasMany( models.Offer );
-};
+// Currency.associate = ( models ) => {
+//     Currency.hasMany( models.Offer );
+// };
 
 module.exports = Currency;

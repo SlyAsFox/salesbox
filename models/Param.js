@@ -31,8 +31,8 @@ Param.init({
     // }
 });
 
-Param.associate = ( models ) => {
-    Param.belongsTo( models.Offer );
-};
+// Param.associate = ( models ) => {
+//     Param.belongsTo( models.Offer );
+// };
 
 module.exports = Param;

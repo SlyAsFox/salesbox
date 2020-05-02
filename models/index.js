@@ -5,6 +5,7 @@ const models = {
     Offer: require('./Offer'),
     Param: require('./Param'),
     Picture: require('./Picture'),
+    OffersCategory: require('./OffersCategory')
 };
 
 const modelNames = Object.keys(models);
