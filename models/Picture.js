@@ -16,6 +16,11 @@ Picture.init({
         type: DataTypes.STRING,
         field: 'offer_internal_id',
         allowNull: false
+    },
+    companyId: {
+        type: DataTypes.INTEGER,
+        field: 'company_id',
+        allowNull: false
     }
 },{
     sequelize,

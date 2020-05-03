@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const router = new Router();
 const asyncHandler = require('express-async-handler');
-const { Company, Category, Offer, Picture } = require('../../../../models');
+const { Company, Category, Offer, Picture, Param } = require('../../../../models');
 const axios = require('axios');
 const parseString = require('xml2js').parseString;
 const sequelize = require('../../../../sequelize');
@@ -74,6 +74,17 @@ router.get('/:id/synchronization', asyncHandler(async (req, res) => {
                         console.log(`[AXIOS ERROR]: ${error}`)
                         throw error;
                     });
+
+                await Picture.destroy({
+                    where: {
+                        companyId: company.id
+                    }
+                }, {transaction: syncTransaction})
+                await Param.destroy({
+                    where: {
+                        companyId: company.id
+                    }
+                }, {transaction: syncTransaction})
 
                 const categories = data.shop[0].categories[0].category;
                 const offers = data.shop[0].offers[0].offer;
@@ -150,15 +161,20 @@ router.get('/:id/synchronization', asyncHandler(async (req, res) => {
                             descriptionRU: offer.description[0]
                         }, {transaction: syncTransaction})
                     }
-                    await Picture.destroy({
-                        where: {
-                            offerId: offer.$.id
-                        }
-                    })
                     for(let pictureURL of offer.picture){
                         await Picture.create({
                             url: pictureURL,
-                            offerId: offer.$.id
+                            offerId: offer.$.id,
+                            companyId: company.id
+                        })
+                    }
+                    for(let param of offer.param){
+                        await Param.create({
+                            offerId: offer.$.id,
+                            companyId: company.id,
+                            name: param.$.name,
+                            unit: (param.$.unit) ? param.$.unit : null,
+                            value: param._
                         })
                     }
                 }

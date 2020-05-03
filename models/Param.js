@@ -17,8 +17,13 @@ Param.init({
         allowNull: false
     },
     offerId: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.STRING,
         field: 'offer_id',
+        allowNull: false
+    },
+    companyId: {
+        type: DataTypes.INTEGER,
+        field: 'company_id',
         allowNull: false
     }
 },{
