@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const router = new Router();
 const asyncHandler = require('express-async-handler');
-const { Company, Category, Offer, Picture, Param } = require('../../../../models');
+const { Company, Category, Offer, Picture, Param, OffersCategory, Currency } = require('../../../../models');
 const axios = require('axios');
 const parseString = require('xml2js').parseString;
 const sequelize = require('../../../../sequelize');
@@ -38,21 +38,8 @@ router.get('/:id/synchronization', asyncHandler(async (req, res) => {
     const syncStart = new Date().getTime();
     const result = {
         status: null,
-        time: null,
-        synchronized: {
-            RU: {
-                haveLink: false,
-                categories: 0,
-                offers: 0
-            },
-            UA: {
-                haveLink: false,
-                categories: 0,
-                offers: 0
-            }
-        }
+        time: null
     }
-    let data = null;
     const company = await Company.findOne({
         where: {
             id: req.params.id
@@ -61,181 +48,207 @@ router.get('/:id/synchronization', asyncHandler(async (req, res) => {
 
     if ( company ){
         const syncTransaction = await sequelize.transaction();
+        let dataRU = null;
+        let dataUA = null;
+
         try {
-            if(company.ymlURL_RU){
-                //get data from url RU
+            //get data from URLs
+            if (company.ymlURL_RU) {
                 await axios.get(company.ymlURL_RU)
-                    .then( (response) => {
+                    .then((response) => {
                         parseString(response.data, (err, result) => {
-                            data = result.yml_catalog
+                            dataRU = result[Object.keys(result)[0]]
+                            // res.send(dataRU)
                         });
                     })
-                    .catch( ( error ) => {
-                        console.log(`[AXIOS ERROR]: ${error}`)
+                    .catch((error) => {
+                        console.log(`[AXIOS RU ERROR]: ${error}`)
                         throw error;
                     });
+            }
+            if (company.ymlURL_UA) {
+                await axios.get(company.ymlURL_UA)
+                    .then((response) => {
+                        parseString(response.data, (err, result) => {
+                            // let k = Object.keys(result)[0];
+                            dataUA = result[Object.keys(result)[0]]
+                            // res.send(result);
+                        });
+                    })
+                    .catch((error) => {
+                        console.log(`[AXIOS UA ERROR]: ${error}`)
+                        throw error;
+                    });
+            }
 
-                await Picture.destroy({
+            const categoriesRU = (dataRU.shop) ? dataRU.shop[0].categories[0].category : null;
+            const offersRU = (dataRU.shop) ? dataRU.shop[0].offers[0].offer : null;
+            const currenciesRU = (dataRU.shop[0].currencies[0].currency) ? dataRU.shop[0].currencies[0].currency : null
+            const categoriesUA = (dataUA.shop) ? dataUA.shop[0].categories[0].category : null;
+            const offersUA = (dataUA.shop) ? dataUA.shop[0].categories[0].category : null;
+
+
+            if(currenciesRU){
+                await Currency.destroy({
                     where: {
                         companyId: company.id
                     }
-                }, {transaction: syncTransaction})
-                await Param.destroy({
-                    where: {
+                })
+                const newCurrencies = [];
+                for(let currency of currenciesRU){
+                    newCurrencies.push({
+                        companyId: company.id,
+                        internalId: currency.$.id,
+                        rate: currency.$.rate
+                    });
+                }
+                Currency.bulkCreate(newCurrencies, {transaction: syncTransaction})
+            }
+
+            const dbCategories = await Category.findAll({
+                where: {
+                    companyId: company.id
+                },
+                order: [
+                    ['internalId', 'ASC']
+                ],
+                raw: true
+            }, {transaction: syncTransaction});
+
+            await Category.destroy({
+                where: {
+                    companyId: company.id
+                }
+            }, {transaction: syncTransaction})
+
+            const newCategories = [];
+
+            for(let categoryRU of categoriesRU) {
+                const dbCategory = dbCategories.find(category => category.internalId == categoryRU.$.id);
+                newCategories.push({
+                    companyId: company.id,
+                    internalId: categoryRU.$.id,
+                    nameRU: categoryRU._,
+                    parentId: (categoryRU.$.parentId) ? categoryRU.$.parentId : null,
+                    originalURL: ( dbCategory ) ? dbCategory.originalURL : null,
+                    previewURL: ( dbCategory ) ? dbCategory.previewURL : null,
+                    nameUA: ( categoriesUA ) ? categoriesUA.find(category => category.$.id === categoryRU.$.id).name[0] : null,
+                    langSupport: ( categoriesUA ) ? 'all' : 'ru'
+                });
+            }
+
+            await Category.bulkCreate(newCategories, {
+                transaction: syncTransaction
+            });
+
+            await Offer.destroy({
+                where: {
+                    companyId: company.id
+                }
+            }, {transaction: syncTransaction})
+            await Param.destroy({
+                where: {
+                    companyId: company.id
+                }
+            }, {transaction: syncTransaction})
+            await Picture.destroy({
+                where: {
+                    companyId: company.id
+                }
+            }, {transaction: syncTransaction})
+            await OffersCategory.destroy({
+                where: {
+                    companyId: company.id
+                }
+            }, {transaction: syncTransaction})
+
+            const newOffers = [];
+            const newPictures = [];
+            const newParams = [];
+            const newCategoryOffers = [];
+
+            for(let offerRU of offersRU) {
+                newOffers.push({
+                    internalId: offerRU.$.id,
+                    companyId: company.id,
+                    available: (offerRU.$.available) ? offerRU.$.available : false,
+                    nameRU: ( offerRU.name ) ? offerRU.name[0] : null,
+                    nameUA: ( offersUA ) ? offersUA.find(offer => offer.$.id === offerRU.$.id).name[0] : null,
+                    descriptionRU: (offerRU.description) ? offerRU.description[0] : null,
+                    descriptionUA: ( offersUA ) ? offersUA.find(offer => offer.$.id === offerRU.description[0]).description[0] : null,
+                    price: (offerRU.price) ? offerRU.price[0] : null,
+                    priceOld: (offerRU.price_old) ? offerRU.price_old[0] : null,
+                    pricePromo: ( offerRU.price_promo ) ? offerRU.price_promo[0] : null,
+                    url: (offerRU.url) ? offerRU.url[0] : null,
+                    vendor: (offerRU.vendor) ? offerRU.vendor[0] : null, //null
+                    currencyId: (offerRU.currencyId) ? offerRU.currencyId[0] : null,
+                    vendorCode: (offerRU.vendor_code) ? offerRU.vendor_code[0] : null,
+                    model: (offerRU.model) ? offerRU.model[0] : null,
+                    stockQuantity: (offerRU.stock_quantity) ? offerRU.stock_quantity[0] : null,
+                    pickup: (offerRU.pickup) ? offerRU.pickup[0] : null,
+                    delivery: (offerRU.delivery) ? offerRU.delivery[0] : null,
+                    countryOfOrigin: (offerRU.country_of_origin) ? offerRU.country_of_origin[0] : null
+                });
+
+                newCategoryOffers.push({
+                    categoryInternalId: (offerRU.categoryId) ? offerRU.categoryId[0] : null,
+                    offerInternalId: offerRU.$.id,
+                    companyId: company.id
+                })
+
+                for(let pictureURL of offerRU.picture){
+                    newPictures.push({
+                        url: pictureURL,
+                        offerId: offerRU.$.id,
                         companyId: company.id
-                    }
-                }, {transaction: syncTransaction})
-
-                const categories = data.shop[0].categories[0].category;
-                const offers = data.shop[0].offers[0].offer;
-
-                for(let category of categories){
-                    const findCategory = await Category.findOne({
-                        where: {
-                            companyId : company.id,
-                            internalId: category.$.id,
-                        }
-                    });
-
-                    if( findCategory ){
-                        await findCategory.update({
-                            nameRU: category._,
-                            parentId: (category.$.parentId) ? category.$.parentId : null
-                        }, {transaction: syncTransaction})
-                    }else{
-                        await Category.create({
-                            companyId : company.id,
-                            internalId: category.$.id,
-                            nameRU: category._,
-                            parentId: (category.$.parentId) ? category.$.parentId : null
-                        }, {transaction: syncTransaction})
-                    }
+                    })
                 }
-
-                for(let offer of offers) {
-                    const findOffer = await Offer.findOne({
-                        where: {
-                            internalId: offer.$.id,
-                            companyId: company.id
-                        }
-                    });
-
-                    if ( findOffer ){
-                        await findOffer.update({
-                            available: offer.$.available,
-                            nameRU: offer.name[0],
-                            price: offer.price[0],
-                            priceOld: offer.price_old[0],
-                            pricePromo: offer.price_promo[0],
-                            url: offer.url[0],
-                            vendor: offer.vendor[0],
-                            currencyId: offer.currencyId[0],
-                            categoryId: offer.categoryId[0],
-                            vendorCode: (offer.vendor_code) ? offer.vendor_code[0] : null,
-                            model: (offer.model) ? offer.model[0] : null,
-                            stockQuantity: (offer.stock_quantity) ? offer.stock_quantity[0] : null,
-                            pickup: (offer.pickup) ? offer.pickup[0] : null,
-                            delivery: (offer.delivery) ? offer.delivery[0] : null,
-                            countryOfOrigin: (offer.country_of_origin) ? offer.country_of_origin[0] : null,
-                            descriptionRU: offer.description[0]
-                        }, {transaction: syncTransaction})
-                    }else {
-                        await Offer.create({
-                            internalId: offer.$.id,
-                            companyId: company.id,
-                            available: offer.$.available,
-                            nameRU: offer.name[0],
-                            price: offer.price[0],
-                            priceOld: offer.price_old[0],
-                            pricePromo: offer.price_promo[0],
-                            url: offer.url[0],
-                            vendor: offer.vendor[0],
-                            currencyId: offer.currencyId[0],
-                            categoryId: offer.categoryId[0],
-                            vendorCode: (offer.vendor_code) ? offer.vendor_code[0] : null,
-                            model: (offer.model) ? offer.model[0] : null,
-                            stockQuantity: (offer.stock_quantity) ? offer.stock_quantity[0] : null,
-                            pickup: (offer.pickup) ? offer.pickup[0] : null,
-                            delivery: (offer.delivery) ? offer.delivery[0] : null,
-                            countryOfOrigin: (offer.country_of_origin) ? offer.country_of_origin[0] : null,
-                            descriptionRU: offer.description[0]
-                        }, {transaction: syncTransaction})
-                    }
-                    for(let pictureURL of offer.picture){
-                        await Picture.create({
-                            url: pictureURL,
-                            offerId: offer.$.id,
-                            companyId: company.id
-                        })
-                    }
-                    for(let param of offer.param){
-                        await Param.create({
-                            offerId: offer.$.id,
-                            companyId: company.id,
-                            name: param.$.name,
-                            unit: (param.$.unit) ? param.$.unit : null,
-                            value: param._
-                        })
-                    }
-                }
-                result.synchronized.RU = {
-                    haveLink: true,
-                    categories: categories.length,
-                    offers: offers.length
+                for(let param of offerRU.param){
+                    newParams.push({
+                        offerId: offerRU.$.id,
+                        companyId: company.id,
+                        name: param.$.name,
+                        unit: (param.$.unit) ? param.$.unit : null,
+                        value: param._
+                    })
                 }
             }
-
-            if(company.ymlURL_UA){
-                result.synchronized.UA.haveLink = true;
-            }
+            await Offer.bulkCreate(newOffers, {
+                transaction: syncTransaction
+            });
+            await Picture.bulkCreate(newPictures, {
+                transaction: syncTransaction
+            });
+            await Param.bulkCreate(newParams, {
+                transaction: syncTransaction
+            });
+            await OffersCategory.bulkCreate(newCategoryOffers, {
+                transaction: syncTransaction
+            });
 
             await syncTransaction.commit()
                 .then( () => {
-                    const syncEnd = new Date().getTime();
-                    result.time = millisToTime(syncEnd - syncStart);
+                    result.time = millisToTime(new Date().getTime() - syncStart);
                     result.status = `[SYNCHRONIZATION SUCCESS] Company with id(${req.params.id}) synchronized`;
                     res.send(result);
                 })
+
         }catch ( error ) {
             await syncTransaction.rollback()
                 .then ( ( error ) => {
-                    const syncEnd = new Date().getTime();
-                    result.time = millisToTime(syncEnd - syncStart);
+                    result.time = millisToTime(new Date().getTime() - syncStart);
                     result.status = `ERROR : Transaction error ${error}`;
                     res.send(result);
+                    console.log('catch error' + error)
                     throw error;
                 })
         }
-
-
     } else {
         const syncEnd = new Date().getTime();
         result.time = millisToTime(syncEnd - syncStart);
         result.status = `[SYNCHRONIZATION ERROR] : Company with id(${req.params.id}) not found`;
         res.send(result);
     }
-}));
-
-//GET offer by id
-router.get('/getOffer/:id', asyncHandler(async (req, res) => {
-    const offer = await Offer.findOne({
-        where: {
-            id: req.params.id
-        }
-    });
-
-    res.send({
-        data: offer
-    })
-}));
-
-router.get('/z/z/z', asyncHandler( async (req, res) => {
-    let str = 'lll'
-    await Offer.create({
-        internal: 'qwe'
-    });
-
-    res.send('created')
 }));
 
 router.get('/:id/getParsedData/:lang', asyncHandler(async (req, res) => {

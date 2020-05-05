@@ -4,19 +4,19 @@ const sequelize = require('../sequelize');
 class OffersCategory extends Model {}
 
 OffersCategory.init({
-    categoryId: {
+    categoryInternalId: {
         type: DataTypes.INTEGER,
         field: 'category_internal_id',
         allowNull: true
     },
-    offerId: {
+    offerInternalId: {
         type: DataTypes.STRING,
         field: 'offer_internal_id',
         allowNull: true
     },
-    isMain: {
-        type: DataTypes.BOOLEAN,
-        field: 'is_main',
+    companyId: {
+        type: DataTypes.INTEGER,
+        field: 'company_id',
         allowNull: true
     }
 },{

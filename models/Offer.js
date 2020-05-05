@@ -87,11 +87,6 @@ Offer.init({
         field: 'stock_quantity',
         allowNull: true,
     },
-    categoryId: {
-        type: DataTypes.INTEGER,
-        field: 'category_id',
-        allowNull: true,
-    },
     currencyId: {
         type: DataTypes.STRING,
         field: 'currency_id',

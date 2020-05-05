@@ -4,14 +4,19 @@ const sequelize = require('../sequelize');
 class Currency extends Model {}
 
 Currency.init({
-    id: {
+    companyId: {
+        type: DataTypes.INTEGER,
+        field: 'company_id',
+        allowNull: true
+    },
+    internalId: {
         type: DataTypes.STRING,
-        allowNull: false,
-        primaryKey: true
+        field: 'internal_id',
+        allowNull: true
     },
     rate: {
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: true
     }
 },{
     sequelize,
