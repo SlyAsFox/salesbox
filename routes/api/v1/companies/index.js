@@ -81,11 +81,19 @@ router.get('/:id/synchronization', asyncHandler(async (req, res) => {
                     });
             }
 
+
             const categoriesRU = (dataRU.shop) ? dataRU.shop[0].categories[0].category : null;
             const offersRU = (dataRU.shop) ? dataRU.shop[0].offers[0].offer : null;
+
+            let categoriesUA = null;
+            let offersUA = null;
+
+            if(dataUA){
+                categoriesUA = (dataUA.shop) ? dataUA.shop[0].categories[0].category : null;
+                offersUA = (dataUA.shop) ? dataUA.shop[0].offers[0].offer : null;
+            }
+
             const currenciesRU = (dataRU.shop[0].currencies[0].currency) ? dataRU.shop[0].currencies[0].currency : null
-            const categoriesUA = (dataUA.shop) ? dataUA.shop[0].categories[0].category : null;
-            const offersUA = (dataUA.shop) ? dataUA.shop[0].categories[0].category : null;
 
 
             if(currenciesRU){
@@ -103,6 +111,8 @@ router.get('/:id/synchronization', asyncHandler(async (req, res) => {
                     });
                 }
                 Currency.bulkCreate(newCurrencies, {transaction: syncTransaction})
+            }else{
+                result.currencies = 'currencies not found'
             }
 
             const dbCategories = await Category.findAll({
@@ -125,6 +135,7 @@ router.get('/:id/synchronization', asyncHandler(async (req, res) => {
 
             for(let categoryRU of categoriesRU) {
                 const dbCategory = dbCategories.find(category => category.internalId == categoryRU.$.id);
+                let uaCategory = getUA(categoriesUA, categoryRU.$.id)
                 newCategories.push({
                     companyId: company.id,
                     internalId: categoryRU.$.id,
@@ -132,11 +143,10 @@ router.get('/:id/synchronization', asyncHandler(async (req, res) => {
                     parentId: (categoryRU.$.parentId) ? categoryRU.$.parentId : null,
                     originalURL: ( dbCategory ) ? dbCategory.originalURL : null,
                     previewURL: ( dbCategory ) ? dbCategory.previewURL : null,
-                    nameUA: ( categoriesUA ) ? categoriesUA.find(category => category.$.id === categoryRU.$.id).name[0] : null,
-                    langSupport: ( categoriesUA ) ? 'all' : 'ru'
+                    nameUA: ( uaCategory ) ? uaCategory._ : null,
+                    langSupport: ( uaCategory ) ? 'all' : 'ru'
                 });
             }
-
             await Category.bulkCreate(newCategories, {
                 transaction: syncTransaction
             });
@@ -168,14 +178,15 @@ router.get('/:id/synchronization', asyncHandler(async (req, res) => {
             const newCategoryOffers = [];
 
             for(let offerRU of offersRU) {
+                let uaOffer = getUA(offersUA, offerRU.$.id)
                 newOffers.push({
                     internalId: offerRU.$.id,
                     companyId: company.id,
                     available: (offerRU.$.available) ? offerRU.$.available : false,
                     nameRU: ( offerRU.name ) ? offerRU.name[0] : null,
-                    nameUA: ( offersUA ) ? offersUA.find(offer => offer.$.id === offerRU.$.id).name[0] : null,
+                    nameUA: ( uaOffer ) ? uaOffer.name[0] : null,
                     descriptionRU: (offerRU.description) ? offerRU.description[0] : null,
-                    descriptionUA: ( offersUA ) ? offersUA.find(offer => offer.$.id === offerRU.description[0]).description[0] : null,
+                    descriptionUA: ( uaOffer ) ? uaOffer.description[0] : null,
                     price: (offerRU.price) ? offerRU.price[0] : null,
                     priceOld: (offerRU.price_old) ? offerRU.price_old[0] : null,
                     pricePromo: ( offerRU.price_promo ) ? offerRU.price_promo[0] : null,
@@ -203,14 +214,16 @@ router.get('/:id/synchronization', asyncHandler(async (req, res) => {
                         companyId: company.id
                     })
                 }
-                for(let param of offerRU.param){
-                    newParams.push({
-                        offerId: offerRU.$.id,
-                        companyId: company.id,
-                        name: param.$.name,
-                        unit: (param.$.unit) ? param.$.unit : null,
-                        value: param._
-                    })
+                if(offerRU.param){
+                    for(let param of offerRU.param){
+                        newParams.push({
+                            offerId: offerRU.$.id,
+                            companyId: company.id,
+                            name: param.$.name,
+                            unit: (param.$.unit) ? param.$.unit : null,
+                            value: param._
+                        })
+                    }
                 }
             }
             await Offer.bulkCreate(newOffers, {
@@ -235,13 +248,10 @@ router.get('/:id/synchronization', asyncHandler(async (req, res) => {
 
         }catch ( error ) {
             await syncTransaction.rollback()
-                .then ( ( error ) => {
-                    result.time = millisToTime(new Date().getTime() - syncStart);
-                    result.status = `ERROR : Transaction error ${error}`;
-                    res.send(result);
-                    console.log('catch error' + error)
-                    throw error;
-                })
+            result.time = millisToTime(new Date().getTime() - syncStart);
+            result.status = `ERROR : Transaction error ${error}`;
+            console.log(`********************\nCATCH ERROR\n${error}\nline: ${error.lineNumber}\n********************`)
+            res.send(result);
         }
     } else {
         const syncEnd = new Date().getTime();
@@ -249,9 +259,13 @@ router.get('/:id/synchronization', asyncHandler(async (req, res) => {
         result.status = `[SYNCHRONIZATION ERROR] : Company with id(${req.params.id}) not found`;
         res.send(result);
     }
-}));
-
-router.get('/:id/getParsedData/:lang', asyncHandler(async (req, res) => {
+    function getUA(arr, id){
+        if(arr){
+            return arr.find(category => category.$.id === id)
+        }
+        return null
+    }
+}));router.get('/:id/getParsedData/:lang', asyncHandler(async (req, res) => {
     const company = await Company.findOne({
         where: {
             id: req.params.id
@@ -298,6 +312,54 @@ router.get('/:id/getParsedData/:lang', asyncHandler(async (req, res) => {
         }
     }else{
         res.send('Company not found')
+    }
+}));
+
+router.get('/:id/getKeys', asyncHandler(async (req, res) => {
+    const company = await Company.findOne({
+        where: {
+            id: req.params.id
+        }
+    })
+
+    if ( company ){
+        if( company.ymlURL_RU ) {
+            //get data from url RU
+            let data = null;
+            await axios.get(company.ymlURL_RU)
+                .then((response) => {
+                    parseString(response.data, (err, result) => {
+                        res.send(unique(result.yml_catalog.shop[0].offers[0].offer));
+                        // res.send(result.yml_catalog)//get all catalog
+                        // res.send(result.yml_catalog.shop[0].offers[0].offer)// get array of offers
+                        // res.send({
+                        //     length: result.yml_catalog.shop[0].offers[0].offer.length
+                        // })// get array of offers length
+                        // res.send(result.yml_catalog.shop[0].offers[0].offer[1])// get first from array of offer
+                        // res.send(Object.keys(result.yml_catalog.shop[0].offers[0].offer[0]))// get keys from 1 offer
+                    });
+                })
+                .catch((err) => {
+                    console.log(`[AXIOS ERROR]: ${err}`)
+                });
+            }else{
+                res.send('XML_RU URL not found')
+            }
+    }else{
+        res.send('Company not found')
+    }
+
+    function unique(arr){
+        const result = [];
+        for(let obj of arr){
+            let keys = Object.keys(obj);
+            for(let key of keys){
+                if (!result.includes(key)) {
+                    result.push(key);
+                }
+            }
+        }
+        return result;
     }
 }));
 

@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 
 const companiesRoutesV1 = require('./routes/api/v1/companies');
-const companiesRoutesV2 = require('./routes/api/v2/companies');
 const categoriesRoutes = require('./routes/api/v1/categories');
 
 const app = express();
@@ -28,7 +27,6 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/v1/companies', companiesRoutesV1);
-app.use('/api/v2/companies', companiesRoutesV2);
 app.use('/api/v1/categories', categoriesRoutes);
 
 app.use((error, req, res, next) => {
