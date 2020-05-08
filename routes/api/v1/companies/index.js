@@ -34,6 +34,28 @@ router.get('/:id', asyncHandler(async (req, res) => {
     })
 }));
 
+router.get('/:id/categories/get-category/:categoryId', asyncHandler(async (req, res) => {
+    const company = await Company.findOne({
+        include: {
+            model: Category,
+            where: {
+                internalId: req.params.categoryId
+            }
+        },
+        where: {
+            id: req.params.id
+        }
+    });
+    const category = company.categories[0]
+    // const category = company.categories[0];
+    // const category = company.categories.find( category => category.internalId === req.params.categoryId.toString());
+
+    res.send({
+        data: category
+    })
+}));
+
+//Synchronization function
 router.get('/:id/synchronization', asyncHandler(async (req, res) => {
     const syncStart = new Date().getTime();
     const result = {
@@ -265,7 +287,9 @@ router.get('/:id/synchronization', asyncHandler(async (req, res) => {
         }
         return null
     }
-}));router.get('/:id/getParsedData/:lang', asyncHandler(async (req, res) => {
+}));
+
+router.get('/:id/getParsedData/:lang', asyncHandler(async (req, res) => {
     const company = await Company.findOne({
         where: {
             id: req.params.id

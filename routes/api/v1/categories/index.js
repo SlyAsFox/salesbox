@@ -13,12 +13,6 @@ router.get('/', asyncHandler(async (req, res) => {
 
 router.get('/:id', asyncHandler(async (req, res) => {
     const category = await Category.findAll({
-        include: [
-            {
-                model: Company,
-                as: 'company'
-            }
-        ],
         where: {
             id: req.params.id
         }

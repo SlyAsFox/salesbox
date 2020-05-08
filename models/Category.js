@@ -51,12 +51,12 @@ Category.init({
     }
 )
 
-// Category.associate = ( models ) => {
-//     Category.belongsTo( models.Company );
+Category.associate = ( models ) => {
+    Category.belongsTo( models.Company );
 //     Category.hasOne( models.Category, {
 //         foreignKey: 'parent_id',
 //         as: 'parent'
 //     });
-// };
+};
 
 module.exports = Category;
