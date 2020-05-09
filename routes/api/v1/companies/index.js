@@ -5,12 +5,14 @@ const { Company, Category, Offer, Picture, Param, OffersCategory, Currency } = r
 const axios = require('axios');
 const parseString = require('xml2js').parseString;
 const sequelize = require('../../../../sequelize');
+const { createCategoryID } = require('../../../../functions')
 
 function millisToTime(millis) {
     const min = Math.floor((millis/1000/60) << 0)
     const sec = ((millis / 1000) % 60).toFixed(2);
     return `${min}m ${sec}s`;
 }
+
 
 //GET all companies
 router.get('/', asyncHandler(async (req, res) => {
@@ -31,27 +33,6 @@ router.get('/:id', asyncHandler(async (req, res) => {
 
     res.send({
         data: company
-    })
-}));
-
-router.get('/:id/categories/get-category/:categoryId', asyncHandler(async (req, res) => {
-    const company = await Company.findOne({
-        include: {
-            model: Category,
-            where: {
-                internalId: req.params.categoryId
-            }
-        },
-        where: {
-            id: req.params.id
-        }
-    });
-    const category = company.categories[0]
-    // const category = company.categories[0];
-    // const category = company.categories.find( category => category.internalId === req.params.categoryId.toString());
-
-    res.send({
-        data: category
     })
 }));
 
@@ -289,6 +270,274 @@ router.get('/:id/synchronization', asyncHandler(async (req, res) => {
     }
 }));
 
+
+//[doc-categories-1] - GET category by companyId & categoryId
+router.get('/:id/categories/:categoryId', asyncHandler(async (req, res) => {
+
+    const company = await Company.findOne({
+        include: {
+            model: Category,
+            where: {
+                internalId: req.params.categoryId
+            }
+        },
+        where: {
+            id: req.params.id
+        }
+    });
+    if( company ){
+        const category = company.categories[0]
+
+        res.status(200).send({
+            success: true,
+            errors: null,
+            data: category
+        })
+    }else{
+        const company = await Company.findOne({
+            where: {
+                id: req.params.id
+            }
+        })
+        if ( company ){
+            res.status(400).send({
+                success: false,
+                errors: `Category(id: ${req.params.categoryId}) not found`,
+                data: null
+            })
+        }else{
+            res.status(400).send({
+                success: false,
+                errors: `Company(id: ${req.params.id}) not found`,
+                data: null
+            })
+        }
+    }
+}));
+
+//[doc-categories-2] - GET all categories by companyId
+router.get('/:id/categories/', asyncHandler(async (req, res) => {
+
+    const company = await Company.findOne({
+        include: {
+            model: Category,
+        },
+        where: {
+            id: req.params.id
+        }
+    });
+    if( company ){
+        res.status(200).send({
+            success: true,
+            errors: null,
+            data: company.categories
+        })
+    }else{
+        res.status(400).send({
+            success: false,
+            errors: `Company(id: ${req.params.id}) not found`,
+            data: null
+        })
+    }
+}));
+
+//[doc-categories-3] - POST create category for company by companyId
+router.post('/:id/categories/create', asyncHandler(async (req, res) => {
+
+    const company = await Company.findOne({
+        include: {
+            model: Category
+        },
+        where: {
+            id: req.params.id
+        }
+    });
+    if( company ){
+        try{
+            const arrIds = [];
+            company.categories.forEach( (category) => arrIds.push(category.internalId) )
+
+            const lang = ( req.body.categoryName.ru && req.body.categoryName.ua ) ? 'all' : ( req.body.categoryName.ru ) ? 'ru' : 'ua';
+
+            const category = {
+                internalId: createCategoryID(arrIds),
+                companyId: company.id,
+                nameRU: ( req.body.categoryName.ru ) ? req.body.categoryName.ru : null,
+                nameUA: ( req.body.categoryName.ua ) ? req.body.categoryName.ua : null,
+                originalURL: ( req.body.photo.originalURL ) ? req.body.photo.originalURL : null,
+                previewURL: ( req.body.photo.previewURL ) ? req.body.photo.previewURL : null,
+                parentId: ( req.body.parentId ) ? req.body.parentId : null,
+                langSupport: lang
+            };
+            await Category.create(category);
+
+            res.status(200).send({
+                success: true,
+                errors: null,
+                data: category
+            })
+        }catch (error) {
+            console.log(error);
+            res.status(400).send({
+                success: false,
+                errors: error,
+                data: null
+            })
+        }
+    }else{
+        res.status(400).send({
+            success: false,
+            errors: `Company(id: ${req.params.id}) not found`,
+            data: null
+        })
+    }
+}));
+
+//[doc-categories-4] - PUT update category for company by companyId
+router.put('/:id/categories/:categoryId', asyncHandler(async (req, res) => {
+    const company = await Company.findOne({
+        where: {
+            id: req.params.id
+        }
+    });
+    if( company ){
+        try{
+            const existCategory = await Category.findOne({
+                where: {
+                    companyId: company.id,
+                    internalId: req.params.categoryId
+                },
+                raw: true
+            });
+            // console.log(existCategory)
+            const updatedCategory = {
+                ...existCategory,
+                nameRU: ( req.body.categoryName.ru ) ? req.body.categoryName.ru : null,
+                nameUA: ( req.body.categoryName.ua ) ? req.body.categoryName.ua : null,
+                originalURL: ( req.body.photo.originalURL ) ? req.body.photo.originalURL : null,
+                previewURL: ( req.body.photo.previewURL ) ? req.body.photo.previewURL : null,
+                parentId: ( req.body.parentId ) ? req.body.parentId : null,
+            }
+            const lang = ( updatedCategory.nameRU && updatedCategory.nameUA ) ? 'all' : ( updatedCategory.nameRU ) ? 'ru' : 'ua';
+
+            const category = await Category.update({
+                ...updatedCategory,
+                langSupport: lang
+            },{
+                where: {
+                    companyId: company.id,
+                    internalId: req.params.categoryId
+                }
+            })
+
+            res.status(200).send({
+                success: true,
+                errors: null,
+                data: category
+            })
+        }catch (error) {
+            res.status(400).send({
+                success: false,
+                errors: error,
+                data: null
+            })
+        }
+    }else{
+        res.status(400).send({
+            success: false,
+            errors: `Company(id: ${req.params.id}) not found`,
+            data: null
+        })
+    }
+}));
+
+//[doc-categories-5] - DELETE category by id for company by companyId
+router.delete('/:id/categories/:categoryId', asyncHandler(async (req, res) => {
+    const company = await Company.findOne({
+        where: {
+            id: req.params.id
+        }
+    });
+    if( company ){
+        try{
+            const category = await Category.findOne({
+                where: {
+                    companyId: company.id,
+                    internalId: req.params.categoryId
+                }
+            });
+            await category.destroy();
+
+            res.status(200).send({
+                success: true,
+                errors: null,
+                data: category
+            })
+        }catch (error) {
+            console.log(error);
+            res.status(400).send({
+                success: false,
+                errors: error,
+                data: null
+            })
+        }
+    }else{
+        res.status(400).send({
+            success: false,
+            errors: `Company(id: ${req.params.id}) not found`,
+            data: null
+        })
+    }
+}));
+
+//[doc-categories-6] - DELETE categories by id`s for company by companyId
+router.delete('/:id/categories/', asyncHandler(async (req, res) => {
+
+    const company = await Company.findOne({
+        where: {
+            id: req.params.id
+        }
+    });
+    if( company ){
+        try{
+            const ids = req.body.ids.map(id => +id);
+            const deletedCategories = await Category.findAll({
+                where: {
+                    companyId: company.id,
+                    internalId: ids
+                },
+            });
+            // const ids = req.body.ids.map(id => +id);
+            await Category.destroy({
+                where: {
+                    companyId: company.id,
+                    internalId: ids
+                },
+            });
+
+            // console.log(categories);
+            res.status(200).send({
+                success: true,
+                errors: null,
+                data: deletedCategories
+            })
+        }catch (error) {
+            console.log(error);
+            res.status(400).send({
+                success: false,
+                errors: error,
+                data: null
+            })
+        }
+    }else{
+        res.status(400).send({
+            success: false,
+            errors: `Company(id: ${req.params.id}) not found`,
+            data: null
+        })
+    }
+}));
+
 router.get('/:id/getParsedData/:lang', asyncHandler(async (req, res) => {
     const company = await Company.findOne({
         where: {
@@ -386,7 +635,6 @@ router.get('/:id/getKeys', asyncHandler(async (req, res) => {
         return result;
     }
 }));
-
 
 
 module.exports = router;

@@ -23,4 +23,15 @@ router.get('/:id', asyncHandler(async (req, res) => {
     })
 }));
 
+router.get('/:id', asyncHandler(async (req, res) => {
+    const category = await Category.findAll({
+        where: {
+            id: req.params.id
+        }
+    });
+
+    res.send({
+        data: category
+    })
+}));
 module.exports = router;
